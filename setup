@@ -1,0 +1,3 @@
+option canGrow 0
+option canIgnite 0
+option pause 1

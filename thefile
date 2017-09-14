@@ -1,0 +1,6 @@
+option canGrow 1
+option canIgnite 1
+
+option pause 1
+
+rect tree 0 0 300 300
