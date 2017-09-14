@@ -13,7 +13,7 @@
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-g" />
-					<Add directory="/home/jcl/prog/code/WaldFeuerSim/include" />
+					<Add directory="include" />
 				</Compiler>
 				<Linker>
 					<Add option="-lncurses" />
@@ -38,18 +38,22 @@
 			<Add option="-std=c++11" />
 		</Compiler>
 		<Unit filename="conio.h" />
+		<Unit filename="include/Cell.h" />
 		<Unit filename="include/Dirt.h" />
 		<Unit filename="include/Fire.h" />
 		<Unit filename="include/GameState.h" />
 		<Unit filename="include/Object.h" />
+		<Unit filename="include/Player.h" />
 		<Unit filename="include/Tree.h" />
 		<Unit filename="include/Vector2D.h" />
 		<Unit filename="include/Water.h" />
 		<Unit filename="main.cpp" />
+		<Unit filename="src/Cell.cpp" />
 		<Unit filename="src/Dirt.cpp" />
 		<Unit filename="src/Fire.cpp" />
 		<Unit filename="src/GameState.cpp" />
 		<Unit filename="src/Object.cpp" />
+		<Unit filename="src/Player.cpp" />
 		<Unit filename="src/Tree.cpp" />
 		<Unit filename="src/Vector2D.cpp" />
 		<Unit filename="src/Water.cpp" />
