@@ -1,3 +1,3 @@
-option canGrow 0
-option canIgnite 0
-option pause 1
+rect dirt 0 0 300 300
+set cell maxX maxY
+set goal 1 2

@@ -10,7 +10,11 @@ class Vector2D
         virtual ~Vector2D();
         void backInBounds(float x, float y, float x2, float y2);
         void setIfNull(int x, int y);
+        void setIfBigger(int x, int y);
+        void setIfCloser(int x, int y, Vector2D pos);
 
+        double length();
+        Vector2D distance(Vector2D vec);
         Vector2D operator+(Vector2D& vec);
         Vector2D operator-(Vector2D& vec);
         Vector2D operator*(int i);

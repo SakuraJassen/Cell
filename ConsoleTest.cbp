@@ -2,7 +2,7 @@
 <CodeBlocks_project_file>
 	<FileVersion major="1" minor="6" />
 	<Project>
-		<Option title="Snak" />
+		<Option title="AiTest" />
 		<Option pch_mode="2" />
 		<Option compiler="gcc" />
 		<Build>
@@ -42,8 +42,10 @@
 		<Unit filename="include/Dirt.h" />
 		<Unit filename="include/Fire.h" />
 		<Unit filename="include/GameState.h" />
+		<Unit filename="include/Goal.h" />
 		<Unit filename="include/Object.h" />
 		<Unit filename="include/Player.h" />
+		<Unit filename="include/States.h" />
 		<Unit filename="include/Tree.h" />
 		<Unit filename="include/Vector2D.h" />
 		<Unit filename="include/Water.h" />
@@ -52,8 +54,10 @@
 		<Unit filename="src/Dirt.cpp" />
 		<Unit filename="src/Fire.cpp" />
 		<Unit filename="src/GameState.cpp" />
+		<Unit filename="src/Goal.cpp" />
 		<Unit filename="src/Object.cpp" />
 		<Unit filename="src/Player.cpp" />
+		<Unit filename="src/States.cpp" />
 		<Unit filename="src/Tree.cpp" />
 		<Unit filename="src/Vector2D.cpp" />
 		<Unit filename="src/Water.cpp" />

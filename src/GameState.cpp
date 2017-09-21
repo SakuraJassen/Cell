@@ -1,4 +1,5 @@
 #include "GameState.h"
+#include "Vector2D.h"
 
 namespace GameState
 {
@@ -8,9 +9,23 @@ namespace GameState
 	unsigned int GrowChance = 100;
 	bool canGrow = true;
 	bool canIgnite = true;
+// OLD
+
 	bool pause = true;
+	bool won = false;
 	int maxY = 0;
     int maxX = 0;
+    int cycle = 1;
+    int score = 0;
+	int cellCount = 0;
+
+	double leftChance = .25;
+    double rightChance = .25;
+    double upChance = .25;
+    double downChance = .25;
+	Vector2D furthest = Vector2D(-1000, -1000);
+	Vector2D goal = Vector2D(0, 0);
+	std::vector<States> stats{States()};
 
     int getNeighbors(Object* field[][SIZE], int x, int y, std::string type)
     {

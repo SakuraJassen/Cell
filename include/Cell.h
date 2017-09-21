@@ -18,10 +18,11 @@ class Cell : public Object
     protected:
         virtual void update(Object* field[][SIZE]);
         void grow(Object* field[][SIZE], int x, int y);
-        void grow(Object* field[][SIZE], int x, int y, int lifeTime);
+        bool grow(Object* field[][SIZE], int x, int y, int lifeTime);
         //bool move(Object* field[][SIZE], int x, int y, int matureTime);
     private:
         int m_MatureTime;
+        bool m_hasSpread;
 };
 
 #endif // CELL_H

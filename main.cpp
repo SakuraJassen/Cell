@@ -9,6 +9,8 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <bitset>
+#include <limits>
 
 #include "conio.h"
 #include <unistd.h>
@@ -22,6 +24,8 @@
 #include "GameState.h"
 #include "Player.h"
 #include "Cell.h"
+#include "States.h"
+#include "Goal.h"
 
 #define SIZE 250
 
@@ -73,12 +77,31 @@ inline vector<string> split(const string& str, const string& delim)
     return tokens;
 }
 
-inline void place(Object* field[][SIZE], string type, int x, int y)
+inline void place(Object* field[][SIZE], string type, string xStr, string yStr)
 {
+    int x = 0;
+    int y = 0;
+    if(xStr != "maxx")
+    {
+        x = stoi(xStr, nullptr, 10);
+    } else
+    {
+        x = GameState::maxX-2;
+    }
+    if(yStr != "maxy")
+    {
+        y = stoi(yStr, nullptr, 10);
+    } else
+    {
+        y = GameState::maxY-1;
+    }
     if(type == "cell") {
         field[x][y] = new Cell(x,y);
     } else if(type == "dirt"){
         field[x][y] = new Dirt(x,y);
+    } else if(type == "goal"){
+        field[x][y] = new Goal(x,y);
+        GameState::goal = {x,y};
     }
 }
 
@@ -91,10 +114,9 @@ inline void runCmd(Object* field[][SIZE], string cmd)
     std::vector<string> v = split(cmd, " ");
     if(v.at(0) == "set")
     {
-        int x = stoi(v.at(2), nullptr, 10);
-        int y = stoi(v.at(3), nullptr, 10);
+
         string type = v.at(1);
-        place(field, type, x, y);
+        place(field, type, v.at(2), v.at(3));
     } else if(v.at(0) == "rect") {
         int x1 = stoi(v.at(2), nullptr, 10);
         int y1 = stoi(v.at(3), nullptr, 10);
@@ -105,7 +127,7 @@ inline void runCmd(Object* field[][SIZE], string cmd)
         {
             for (int x = x1; x <= x2; ++x)
             {
-                place(field, type, x, y);
+                place(field, type, std::to_string(x), std::to_string(y));
             }
         }
     } else if(v.at(0) == "option") {
@@ -128,7 +150,7 @@ inline void runCmd(Object* field[][SIZE], string cmd)
 void loadFile(Object* field[][SIZE], string fileName)
 {
     std::string line;
-    std::ifstream infile("/home/jcl/prog/code/ConsoleTest/"+fileName);
+    std::ifstream infile("/home/jcl/prog/code/aitest/"+fileName);
     for( std::string line; getline( infile, line ); )
     {
         if(line == "") // Ignore empty lines
@@ -137,19 +159,35 @@ void loadFile(Object* field[][SIZE], string fileName)
     }
 }
 
+void clearField(Object* field[][SIZE])
+{
+    stringstream out;
+    out << "rect dirt 0 0 " << GameState::maxX << " " << GameState::maxY;
+    runCmd(field, out.str());
+}
+
+double getScore(int timePenalty)
+{
+    double wonBonus = 0;
+    if(GameState::won)
+        wonBonus = -100;
+    return std::hypot(GameState::goal.m_X-GameState::furthest.m_X, GameState::goal.m_Y-GameState::furthest.m_Y)+(GameState::cycle/30)+wonBonus;
+}
+
 int main()
 {
     int maxY,maxX;
 
     initscr();
     start_color();
-
+    srand (time(NULL));
     init_pair(1, COLOR_RED, COLOR_BLACK);
     init_pair(2, COLOR_GREEN, COLOR_BLACK);
     init_pair(3, COLOR_WHITE, COLOR_BLACK);
     init_pair(4, COLOR_WHITE, COLOR_BLACK);
     init_pair(5, COLOR_YELLOW, COLOR_BLACK);
     init_pair(6, COLOR_WHITE, COLOR_BLACK);
+    curs_set(0);
     getmaxyx(stdscr, maxY, maxX);
 
     Object* field[SIZE][SIZE];
@@ -171,20 +209,101 @@ int main()
         }
     }
 
-    Player player(1,3);
+    vector<double> score;
+    vector<Vector2D> scoreVec;
     int frames = 0;
-
     char lastKey = 'q';
     bool exit = false;
     bool onlyOneFrame = false;
-    bool faster = false;
+    bool faster = true;
+    int sameCellCount = 0;
+    int oldCellCount = 0;
+    int gen = 1;
+    int tries = 0;
+    double smallest = std::numeric_limits<double>::infinity();
+    int index = 0;
+    int timePenalty = 20;
+    double dirsStat [] = {0,0,0,0,0};
     loadFile(field, "setup");
+    field[GameState::goal.m_X][GameState::goal.m_Y] = new Goal(GameState::goal.m_X, GameState::goal.m_Y);
     auto t1 = std::chrono::high_resolution_clock::now();
     auto t2 = std::chrono::high_resolution_clock::now();
     while(!exit)
     {
-        if (kbhit() != 0) { // When there is a key wating in the InputStream get it.
-            Vector2D vec(0,0); //The direction Vector
+        if(oldCellCount == GameState::cellCount && !GameState::pause)
+        {
+          sameCellCount++;
+          if(sameCellCount >= 20*80 || GameState::won)
+          {
+            score.push_back(getScore(timePenalty));
+            scoreVec.push_back(GameState::furthest);
+            GameState::stats.push_back(States());
+            loadFile(field, "setup");
+            field[GameState::goal.m_X][GameState::goal.m_Y] = new Goal(GameState::goal.m_X, GameState::goal.m_Y);
+            sameCellCount = 0;
+            oldCellCount = 0;
+            GameState::cycle = 1;
+            GameState::score = 0;
+            GameState::cellCount = 0;
+            GameState::furthest = Vector2D(-1000, -1000);
+            tries++;
+            GameState::won = false;
+
+            if(tries >= 10)
+            {
+                bool foundBetter = false;
+                for(std::vector<double>::size_type i = 0; i != score.size(); i++)
+                {
+                    if(score[i] <= smallest)
+                    {
+                        smallest = score[i];
+                        index = i;
+                        foundBetter = true;
+                    }
+                }
+                for (int i = 0; i < sizeof dirsStat / sizeof dirsStat[0]; ++i)
+                {
+                    dirsStat[i] = 0;
+                }
+
+                if(foundBetter)
+                {
+                    for (auto& dirs : GameState::stats[index].m_Dirs )
+                    {
+                        if(getBit(dirs, 0))
+                        {
+                            dirsStat[0]+=1; // >
+                        } else if(getBit(dirs, 1))
+                        {
+                            dirsStat[1]+=1; // <
+                        } else if(getBit(dirs, 2))
+                        {
+                            dirsStat[2]+=1; // V
+                        } else if(getBit(dirs, 3))
+                        {
+                            dirsStat[3]+=1; // ^
+                        }
+                        dirsStat[4]+=1;
+                    }
+                    GameState::rightChance = (dirsStat[0]/dirsStat[4])+0.000001;
+                    GameState::leftChance = (dirsStat[1]/dirsStat[4])+0.000001;
+                    GameState::downChance =(dirsStat[2]/dirsStat[4])+0.000001;
+                    GameState::upChance = (dirsStat[3]/dirsStat[4])+0.000001;
+                }
+                score.clear();
+                GameState::stats = {States()};
+                gen++;
+                tries = 0;
+            }
+          }
+        }
+        else
+        {
+            sameCellCount = 0;
+        }
+        oldCellCount = GameState::cellCount;
+        if (kbhit() != 0) { // When there is a key waiting in the InputStream get it.
+            Vector2D vec(0,0); // The direction Vector
             lastKey = getch();
             switch(lastKey) {
                 case 'a' :
@@ -194,34 +313,20 @@ int main()
                     vec = Vector2D (1,0);
                     break;
                 case 'w' :
-                    vec = Vector2D (0,-1);
+                    timePenalty++;
                     break;
                 case 's' :
-                    vec = Vector2D (0,1);
+                    timePenalty--;
                     break;
                 case 'p' :
                     GameState::pause = !GameState::pause;
                     break;
-                case ' ':
-                    {
-                        int x = player.m_Pos.m_X;
-                        int y = player.m_Pos.m_Y;
-                        field[x][y] = new Cell(x,y);
-                        break;
-                    }
                 case 'o':
                     loadFile(field, "thefile");
                     break;
                 case 'q':
                     onlyOneFrame = true;
                     break;
-                case 'n':
-                    {
-                        stringstream out;
-                        out << "rect dirt 0 0 " << GameState::maxX << " " << GameState::maxY;
-                        runCmd(field, out.str());
-                        break;
-                    }
                 case 'l':
                     faster = !faster;
                     break;
@@ -230,18 +335,17 @@ int main()
                     break;
             }
 
-            player.m_Pos = player.m_Pos + vec;
-            player.m_Pos.backInBounds(1,2,maxX-1,maxY-1);
-            frames += 100; //Force an Update
+            frames += 100; // Force an Update
         }
-        //move(1,1);
-        if(frames >= 40 || faster){
+        // move(1,1);
+        if(frames >= 40){
             t1 = std::chrono::high_resolution_clock::now();
-            //Logic
+            // Logic
             if (!GameState::pause || onlyOneFrame)
             {
+                GameState::cycle++;
                 if(onlyOneFrame)
-                    GameState::pause = false; //Temporary unpause the Game
+                    GameState::pause = false; // Temporary unpause the Game
 
                 copyArr(field, bufffield);
 
@@ -261,7 +365,7 @@ int main()
                 }
             }
 
-            //Display
+            // Display
             for (int y = 1; y < maxY; ++y)
             {
                 for (int x = 1; x < maxX; ++x)
@@ -272,23 +376,65 @@ int main()
                 }
                 move(y,1);
             }
-            //Debug Display
-            attron(COLOR_PAIR(6));
-            move(maxY+1, 0);
-            printw("%s, P:%d, Tile:", player.m_Pos.toString().c_str(), GameState::pause);
-            printw("\n %s", field[player.m_Pos.m_X][player.m_Pos.m_Y]->toString().c_str());
 
-            stringstream out;
+            // Debug Display
+            attron(COLOR_PAIR(6));
+            move(maxY, 0);
+            printw("gen:%d, tries:%02d, score: %f, %s", gen, tries+1, getScore(timePenalty), GameState::furthest.toString().c_str());
+            if(faster)
+            {
+                printw("\t>%f <%f V%f ^%f\t\t\t\t", GameState::rightChance, GameState::leftChance, GameState::downChance, GameState::upChance);
+            } else
+            {
+                printw("\t\t\t\t\t\t\t");
+            }
+
+            /*stringstream out;
             t2 = std::chrono::high_resolution_clock::now();
             out << "Last Frame:" << std::chrono::duration_cast<std::chrono::microseconds>(t2-t1).count() << "µs   ";
-            printw("\n %s", out.str().c_str());
+            printw("\n %s", out.str().c_str());*/
             refresh();
             frames = 0;
         }
-        move(player.m_Pos.m_Y-1, player.m_Pos.m_X);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        // std::this_thread::sleep_for(std::chrono::milliseconds(1));
         frames++;
+        // if(GameState::won)
+            // exit = true;
     }
     endwin();
+    /*for (const auto& scoreTuple : score)
+    {
+        cout << setfill('0') << setw(10) << scoreTuple << "  ";
+    }
+    cout << "big:" << smallest << " " << index;
+    cout << endl;
+
+    for (auto& dirs : GameState::stats[index].m_Dirs )
+    {
+        std::string binary = std::bitset<4>(dirs).to_string();
+        cout << binary << " ";
+        if(getBit(dirs, 0))
+        {
+            cout << "0, >";
+        } else if(getBit(dirs, 1))
+        {
+            cout << "1, <";
+        } else if(getBit(dirs, 2))
+        {
+            cout << "2, V";
+        } else if(getBit(dirs, 3))
+        {
+            cout << "3, ^";
+        }
+        cout << endl;
+    }
+    for (int i = 0; i < sizeof dirsStat / sizeof dirsStat[0]; ++i)
+    {
+        cout << i << ": " << dirsStat[i]<<endl;
+    }*/
+    if(GameState::won)
+        cout << "It took " << gen << " generations" << endl;
+
+    cout << endl;
     return 0;
 }
